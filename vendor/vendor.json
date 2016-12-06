@@ -3,10 +3,22 @@
 	"ignore": "test",
 	"package": [
 		{
-			"checksumSHA1": "2avCvSn0XonfApKKuTMyiQmk7s0=",
+			"checksumSHA1": "kSyz5k+IXy97V+i0MsxAyFot2Z8=",
 			"path": "github.com/Sirupsen/logrus",
-			"revision": "3ec0642a7fb6488f65b06f9040adc67e3990296a",
-			"revisionTime": "2016-08-29T20:23:21Z"
+			"revision": "21d4508646ae56d79244bd9046c1df63a5fa8c37",
+			"revisionTime": "2015-06-10T09:38:35Z"
+		},
+		{
+			"checksumSHA1": "/Ag77fi+cY0EG/UET39pyAEDzJE=",
+			"path": "github.com/mediocregopher/radix.v2/pool",
+			"revision": "94451b037e02236d550bdc2035d0a9851749369b",
+			"revisionTime": "2016-11-01T16:35:20Z"
+		},
+		{
+			"checksumSHA1": "LkMTNEcMHUPSti0AsNHJKNr/B5E=",
+			"path": "github.com/mediocregopher/radix.v2/redis",
+			"revision": "94451b037e02236d550bdc2035d0a9851749369b",
+			"revisionTime": "2016-11-01T16:35:20Z"
 		}
 	],
 	"rootPath": "github.com/voidlock/log-boom"
