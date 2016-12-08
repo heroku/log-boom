@@ -8,30 +8,14 @@ import (
 	"github.com/mediocregopher/radix.v2/redis"
 )
 
-// Datastore is the main interface into the db package.
-type Datastore interface {
-	Inserter
-	HealthChecker
-}
-
-// Inserter is the interface for inserting records into the Datastore.
-type Inserter interface {
-	Insert(token string, lines []string) (int, error)
-}
-
-// HealthChecker is the interface for performming healthchecks against the Datastore.
-type HealthChecker interface {
-	Healthcheck() (bool, error)
-}
-
 // RedisDB is the redis implementation of the Datastore interface.
 type RedisDB struct {
 	p    *pool.Pool
 	keep int
 }
 
-// NewRedisBackend creates an instance of RedisDB.
-func NewRedisBackend(u *url.URL, keep, size int) (*RedisDB, error) {
+// NewInRedis creates an instance of RedisDB.
+func NewInRedis(u *url.URL, keep, size int) (*RedisDB, error) {
 
 	client, err := pool.NewCustom("tcp", u.Host, size, dialer(u.User))
 	if err != nil {
@@ -74,10 +58,6 @@ func (db *RedisDB) Insert(token string, lines []string) (int, error) {
 		return len(lines), err
 	}
 
-	log.WithFields(log.Fields{
-		"at":    "Insert",
-		"lines": len(lines),
-	}).Info("successfully stored logs in redis")
 	return len(lines), nil
 }
 
@@ -88,6 +68,34 @@ func (db *RedisDB) Healthcheck() (bool, error) {
 		return true, nil
 	}
 	return false, err
+}
+
+// List performs LRANGE agains redis.
+func (db *RedisDB) List(token string) ([]string, error) {
+	conn, err := db.p.Get()
+	if err != nil {
+		log.WithFields(log.Fields{
+			"at":  "List",
+			"err": err,
+		}).Error()
+		return nil, err
+	}
+	defer db.p.Put(conn)
+
+	exists, err := conn.Cmd("EXISTS", token).Int()
+	if err != nil {
+		return nil, err
+	}
+	if exists == 0 {
+		return nil, ErrNoSuchToken
+	}
+
+	lines, err := conn.Cmd("LRANGE", token, 0, -1).List()
+	if err != nil {
+		return nil, err
+	}
+
+	return lines, nil
 }
 
 func dialer(user *url.Userinfo) pool.DialFunc {

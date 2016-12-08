@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -16,6 +15,14 @@ import (
 
 // DefaultRedisPoolSize is the default pool size (defaults to 4).
 const DefaultRedisPoolSize = 4
+
+const (
+	// MinSyslogFrameSize is the smallest (all NULLVALUE) size a syslog frame can be.
+	MinSyslogFrameSize = 18
+
+	// MaxSyslogFrameSize is the largest size a syslog frame can be.
+	MaxSyslogFrameSize = 10 * 1024
+)
 
 type env struct {
 	db ds.Datastore
@@ -78,7 +85,7 @@ func (e *env) logsHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, http.StatusText(400), 400)
 		return
 	}
-	stored, err := e.db.Insert(token, lines)
+	_, err = e.db.Insert(token, lines)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"at":  "logs",
@@ -88,66 +95,75 @@ func (e *env) logsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.WithFields(log.Fields{
-		"at":     "logs",
-		"len":    len(lines),
-		"stored": stored,
-	}).Info("stored logs in redis")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(204)
 }
 
-const (
-	// MinSyslogFrameSize is the smallest (all NULLVALUE) size a syslog frame can be.
-	MinSyslogFrameSize = 18
-
-	// MaxSyslogFrameSize is the largest size a syslog frame can be.
-	MaxSyslogFrameSize = 10 * 1024
-)
-
-func scanOffset(data []byte, atEOF bool) (int, error) {
-	advance, token, err := bufio.ScanWords(data, atEOF)
-	if token == nil || err != nil {
-		return 0, err
+func (e *env) listHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		http.Error(w, http.StatusText(405), 405)
+		return
 	}
 
-	offset, err := strconv.ParseInt(string(token), 10, 32)
+	// FIXME handle subtrees properly
+	token := r.URL.Path
+
+	logs, err := e.db.List(token)
 	if err != nil {
-		return 0, err
+		log.WithFields(log.Fields{
+			"at":  "logs",
+			"err": err,
+		}).Error("could not store logs")
+		if err == ds.ErrNoSuchToken {
+			http.Error(w, http.StatusText(404), 404)
+		} else {
+			http.Error(w, http.StatusText(500), 500)
+		}
+		return
 	}
-	return advance + int(offset), nil
+
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.WriteHeader(200)
+	for _, line := range logs {
+		w.Write([]byte(line))
+	}
 }
 
-func readSyslogFrame(data []byte, atEOF bool) (int, []byte, error) {
-
-	advance, err := scanOffset(data, atEOF)
-	if err != nil {
-		return 0, nil, err
+// ScanRFC6587 does stuff
+func ScanRFC6587(data []byte, atEOF bool) (int, []byte, error) {
+	mark := 0
+	for ; mark < len(data); mark++ {
+		if data[mark] == ' ' {
+			break
+		}
 	}
 
-	if advance < MinSyslogFrameSize || advance > MaxSyslogFrameSize {
-		return 0, nil, errors.New("Invalid Syslog Frame")
+	for i := mark; i < len(data); i++ {
+		if data[i] == '<' {
+			offset, err := strconv.Atoi(string(data[0:mark]))
+			if err != nil {
+				return 0, nil, err
+			}
+			token := data[:mark+offset+1]
+			return len(token), token, nil
+		}
 	}
 
-	if !atEOF && advance > len(data) {
-		return 0, nil, nil
+	if atEOF && len(data) > mark {
+		return 0, nil, errors.New("Not RFC6587 Formatted Syslog")
 	}
 
-	if atEOF && len(data)-advance < MinSyslogFrameSize {
-		return advance, data[:advance], bufio.ErrFinalToken
-	}
-
-	return advance, data[:advance], nil
+	// Request more data.
+	return mark, nil, nil
 }
 
 func process(r io.Reader, count int64) ([]string, error) {
 	scanner := bufio.NewScanner(r)
-	scanner.Split(readSyslogFrame)
+	scanner.Split(ScanRFC6587)
 
 	lines := make([]string, 0, count)
 	for scanner.Scan() {
 		lines = append(lines, scanner.Text())
-		fmt.Printf("%#v\n", lines)
 	}
 
 	if err := scanner.Err(); err != nil {
@@ -163,28 +179,35 @@ func main() {
 	if port == "" {
 		log.Fatal("$PORT must be set")
 	}
-	url, err := url.Parse(os.Getenv("REDIS_URL"))
-	if err != nil || url.Scheme != "redis" {
-		log.Fatal("$REDIS_URL must be set and valid")
-	}
 	keep, err := strconv.Atoi(os.Getenv("BUFFER_SIZE"))
 	if err != nil {
 		keep = 1500
 	}
-	size, err := strconv.Atoi(os.Getenv("REDIS_POOL_SIZE"))
-	if err != nil {
-		size = DefaultRedisPoolSize
-	}
 
-	db, err := ds.NewRedisBackend(url, keep, size)
-	if err != nil {
-		log.Fatal(err)
+	e := &env{}
+	switch os.Getenv("DATASTORE") {
+	default:
+		db, _ := ds.NewInMemory(keep)
+		e.db = db
+	case "redis":
+		url, err := url.Parse(os.Getenv("REDIS_URL"))
+		if err != nil || url.Scheme != "redis" {
+			log.Fatal("$REDIS_URL must be set and valid")
+		}
+		size, err := strconv.Atoi(os.Getenv("REDIS_POOL_SIZE"))
+		if err != nil {
+			size = DefaultRedisPoolSize
+		}
+		db, err := ds.NewInRedis(url, keep, size)
+		if err != nil {
+			log.Fatal(err)
+		}
+		e.db = db
 	}
-
-	e := &env{db}
 
 	http.HandleFunc("/healthcheck", e.healthHandler)
 	http.HandleFunc("/logs", e.logsHandler)
+	http.Handle("/list/", http.StripPrefix("/list/", http.HandlerFunc(e.listHandler)))
 
 	if err := http.ListenAndServe(listen+":"+port, nil); err != nil {
 		log.WithFields(log.Fields{
