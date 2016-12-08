@@ -1,9 +1,6 @@
 package main
 
 import (
-	"bufio"
-	"errors"
-	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -11,18 +8,11 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	ds "github.com/voidlock/log-boom/datastore"
+	"github.com/voidlock/log-boom/syslog"
 )
 
 // DefaultRedisPoolSize is the default pool size (defaults to 4).
 const DefaultRedisPoolSize = 4
-
-const (
-	// MinSyslogFrameSize is the smallest (all NULLVALUE) size a syslog frame can be.
-	MinSyslogFrameSize = 18
-
-	// MaxSyslogFrameSize is the largest size a syslog frame can be.
-	MaxSyslogFrameSize = 10 * 1024
-)
 
 type env struct {
 	db ds.Datastore
@@ -76,7 +66,7 @@ func (e *env) logsHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, http.StatusText(400), 400)
 	}
 
-	lines, err := process(r.Body, count)
+	lines, err := syslog.Scan(r.Body, count)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"at":  "logs",
@@ -127,50 +117,6 @@ func (e *env) listHandler(w http.ResponseWriter, r *http.Request) {
 	for _, line := range logs {
 		w.Write([]byte(line))
 	}
-}
-
-// ScanRFC6587 does stuff
-func ScanRFC6587(data []byte, atEOF bool) (int, []byte, error) {
-	mark := 0
-	for ; mark < len(data); mark++ {
-		if data[mark] == ' ' {
-			break
-		}
-	}
-
-	for i := mark; i < len(data); i++ {
-		if data[i] == '<' {
-			offset, err := strconv.Atoi(string(data[0:mark]))
-			if err != nil {
-				return 0, nil, err
-			}
-			token := data[:mark+offset+1]
-			return len(token), token, nil
-		}
-	}
-
-	if atEOF && len(data) > mark {
-		return 0, nil, errors.New("Not RFC6587 Formatted Syslog")
-	}
-
-	// Request more data.
-	return mark, nil, nil
-}
-
-func process(r io.Reader, count int64) ([]string, error) {
-	scanner := bufio.NewScanner(r)
-	scanner.Split(ScanRFC6587)
-
-	lines := make([]string, 0, count)
-	for scanner.Scan() {
-		lines = append(lines, scanner.Text())
-	}
-
-	if err := scanner.Err(); err != nil {
-		return nil, err
-	}
-
-	return lines, nil
 }
 
 func main() {
