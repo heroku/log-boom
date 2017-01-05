@@ -14,14 +14,14 @@ The list below is merely a brain dump of ideas on where to take this project.
 - [x] Multi Drain Capable
 - [ ] Log Drain Endpoint
   - [x] Basic Endpoint (No Auth)
-  - [] Heroku Drain Token Auth
+  - [ ] Heroku Drain Token Auth
 - [ ] List Endpoint
   - [x] Basic Endpoint (No Auth)
   - [ ] Authentication
   - [ ] Live Tail Streaming
 - [x] Healthcheck Endpoint
   - [x] Ensures backend is functional
-- [ ] Welcome Endpoint
+- [ ] Welcome [Success URL](https://devcenter.heroku.com/articles/app-json-schema#success_url) Endpoint
   - [ ] Guided steps to drain from another app to this collector
   - [ ] Authenticated, perhaps heroku-bouncer style to allow only app collaborators access to guided setup
 - [ ] CLI Binary
@@ -61,14 +61,14 @@ the data in that redis datastore is completly up to the owner of that redis
 server. 
 
 The simplest way to to wire up a redis datastore is to use [Heroku
-Redis](https://elements.heroku.com/addons/heroku-redis) or any 3rd party
-[Heroku Redis Add-on](https://elements.heroku.com/addons).
+Redis](https://elements.heroku.com/addons/heroku-redis) or any [3rd Party
+Redis Add-on](https://elements.heroku.com/addons).
 
 In order to utlize the `memory` datastore two additional environment variables
-must be present.
+that can be customized.
 
 Name | Default | Description
 ---- | ------- | -----------
-__`REDIS_URL`__ | N/A | _Required_, controls which redis to connect to. Automatically set when using a Heroku Add-on.
+__`REDIS_URL`__ | N/A | _Required_, controls which redis to connect to. Automatically set when using a [Heroku Redis](https://elements.heroku.com/addons/heroku-redis).
 __`REDIS_POOL_SIZE`__ | `4` |  _Optional_, controls the number of available redis pooled connections.
 
