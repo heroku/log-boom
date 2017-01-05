@@ -38,10 +38,12 @@ Click the button
 
 There are several environment variables that you can tweak to customize your experience
 
-- `BUFFER_SIZE`: Controls the size of the ring buffer. __Optional__, defaults to `1500` log lines.
-- `LISTEN`: Controls which interface to listen on. __Optional__, defaults to `0.0.0.0`.
-- `PORT`: Controls which port to listen on. __Required__, no default..
-- `DATASTORE`: Controls which backend to utilize, `memory` or `redis`. __Optional__, defaults to `memory`.
+Name | Default | Description
+---- | ------- | -----------
+__`BUFFER_SIZE`__ | `1500` | _Optional_, controls the size of the ring buffer in log lines.
+__`LISTEN`__ | `0.0.0.0` | _Optional_, controls which interface to listen on.
+__`PORT`__ | N/A | _Required_, controls which port to listen on, eg 5000.
+__`DATASTORE`__ | `memory` | _Optional_, controls which backend to utilize. Available options are `memory` or `redis`.
 
 ### Backend Datastores
 
@@ -65,6 +67,8 @@ Redis](https://elements.heroku.com/addons/heroku-redis) or any 3rd party
 In order to utlize the `memory` datastore two additional environment variables
 must be present.
 
-* `REDIS_URL``: Controls which redis to connect to. __Required, but automatically set when using a Heroku Add-on__
-* `REDIS_POOL_SIZE`: Controls the number of available redis pooled connections. __Optional__, defaults to `4`.
+Name | Default | Description
+---- | ------- | -----------
+__`REDIS_URL`__ | N/A | _Required_, controls which redis to connect to. Automatically set when using a Heroku Add-on.
+__`REDIS_POOL_SIZE`__ | `4` |  _Optional_, controls the number of available redis pooled connections.
 
