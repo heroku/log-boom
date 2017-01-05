@@ -11,8 +11,13 @@ import (
 	"github.com/voidlock/log-boom/syslog"
 )
 
-// DefaultRedisPoolSize is the default pool size (defaults to 4).
-const DefaultRedisPoolSize = 4
+const (
+	// DefaultRedisPoolSize is the default pool size (defaults to 4).
+	DefaultRedisPoolSize = 4
+
+	// DefaultBufferSize is the default size of the ring bugger in log lines.
+	DefaultBufferSize = 1500
+)
 
 type env struct {
 	db ds.Datastore
@@ -127,14 +132,11 @@ func main() {
 	}
 	keep, err := strconv.Atoi(os.Getenv("BUFFER_SIZE"))
 	if err != nil {
-		keep = 1500
+		keep = DefaultBufferSize
 	}
 
 	e := &env{}
 	switch os.Getenv("DATASTORE") {
-	default:
-		db, _ := ds.NewInMemory(keep)
-		e.db = db
 	case "redis":
 		url, err := url.Parse(os.Getenv("REDIS_URL"))
 		if err != nil || url.Scheme != "redis" {
@@ -148,6 +150,11 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
+	case "memory":
+		fallthrough
+	default:
+		db, _ := ds.NewInMemory(keep)
+		e.db = db
 		e.db = db
 	}
 
