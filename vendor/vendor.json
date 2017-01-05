@@ -1,4 +1,10 @@
 {
+	"heroku": {
+		"goVersion": "go1.7",
+		"install": [
+			"./..."
+		]
+	},
 	"comment": "",
 	"ignore": "test",
 	"package": [

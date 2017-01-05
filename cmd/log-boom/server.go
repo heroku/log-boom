@@ -150,11 +150,11 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
+		e.db = db
 	case "memory":
 		fallthrough
 	default:
 		db, _ := ds.NewInMemory(keep)
-		e.db = db
 		e.db = db
 	}
 
