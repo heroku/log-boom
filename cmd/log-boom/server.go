@@ -9,6 +9,8 @@ import (
 	log "github.com/Sirupsen/logrus"
 	ds "github.com/voidlock/log-boom/datastore"
 	"github.com/voidlock/log-boom/syslog"
+	"goji.io"
+	"goji.io/pat"
 )
 
 const (
@@ -24,11 +26,6 @@ type env struct {
 }
 
 func (e *env) healthHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "GET" {
-		http.Error(w, http.StatusText(405), 405)
-		return
-	}
-
 	ok, err := e.db.Healthcheck()
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -53,10 +50,6 @@ func (e *env) healthHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (e *env) logsHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		http.Error(w, http.StatusText(405), 405)
-		return
-	}
 	if r.Header.Get("Content-Type") != "application/logplex-1" {
 		http.Error(w, http.StatusText(415), 415)
 		return
@@ -95,13 +88,7 @@ func (e *env) logsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (e *env) listHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "GET" {
-		http.Error(w, http.StatusText(405), 405)
-		return
-	}
-
-	// FIXME handle subtrees properly
-	token := r.URL.Path
+	token := pat.Param(r, "token")
 
 	logs, err := e.db.List(token)
 	if err != nil {
@@ -158,11 +145,12 @@ func main() {
 		e.db = db
 	}
 
-	http.HandleFunc("/healthcheck", e.healthHandler)
-	http.HandleFunc("/logs", e.logsHandler)
-	http.Handle("/list/", http.StripPrefix("/list/", http.HandlerFunc(e.listHandler)))
+	mux := goji.NewMux()
+	mux.HandleFunc(pat.Get("/healthcheck"), e.healthHandler)
+	mux.HandleFunc(pat.Post("/logs"), e.logsHandler)
+	mux.HandleFunc(pat.Get("/list/:token"), e.listHandler)
 
-	if err := http.ListenAndServe(listen+":"+port, nil); err != nil {
+	if err := http.ListenAndServe(listen+":"+port, mux); err != nil {
 		log.WithFields(log.Fields{
 			"err": err,
 		}).Fatal("unable to start server")
