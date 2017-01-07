@@ -7,8 +7,8 @@ import (
 	"strconv"
 
 	log "github.com/Sirupsen/logrus"
-	ds "github.com/voidlock/log-boom/datastore"
 	"github.com/voidlock/log-boom/auth"
+	ds "github.com/voidlock/log-boom/datastore"
 	"github.com/voidlock/log-boom/syslog"
 	"goji.io"
 	"goji.io/pat"
@@ -96,7 +96,7 @@ func (e *env) listHandler(w http.ResponseWriter, r *http.Request) {
 		log.WithFields(log.Fields{
 			"at":  "logs",
 			"err": err,
-		}).Error("could not store logs")
+		}).Error("could find stored logs")
 		if err == ds.ErrNoSuchToken {
 			http.Error(w, http.StatusText(404), 404)
 		} else {
@@ -112,7 +112,6 @@ func (e *env) listHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-
 func main() {
 	listen := os.Getenv("LISTEN")
 	port := os.Getenv("PORT")
@@ -123,7 +122,6 @@ func main() {
 	if err != nil {
 		keep = DefaultBufferSize
 	}
-
 
 	e := &env{}
 	switch os.Getenv("DATASTORE") {
@@ -150,13 +148,13 @@ func main() {
 
 	var (
 		root = goji.NewMux()
-		logs = goji.SubMux()
 		list = goji.SubMux()
+		logs = goji.SubMux()
 	)
 
 	root.HandleFunc(pat.Get("/healthcheck"), e.healthHandler)
 	root.Handle(pat.New("/logs"), logs)
-	root.Handle(pat.New("/list"), list)
+	root.Handle(pat.New("/list/*"), list)
 
 	list.HandleFunc(pat.Get("/:token"), e.listHandler)
 
