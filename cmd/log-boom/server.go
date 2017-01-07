@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	ds "github.com/voidlock/log-boom/datastore"
@@ -111,6 +112,51 @@ func (e *env) listHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type drainTokenAuth struct {
+	handler http.Handler
+	tokens map[string]bool
+}
+
+func DrainTokenAuth(tokens string) func(http.Handler) http.Handler {
+	set := make(map[string]bool)
+
+	for _, token := range strings.Split(tokens, ",") {
+		if token != "" {
+			set[token] = true
+		}
+	}
+
+	fn := func(h http.Handler) http.Handler {
+		return &drainTokenAuth{
+			handler: h,
+			tokens: set,
+		}
+	}
+	return fn
+}
+
+func (d drainTokenAuth) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if d.authenticate(r) == false {
+		http.Error(w, http.StatusText(401), 401)
+		return
+	}
+
+	d.handler.ServeHTTP(w, r)
+}
+
+func (d drainTokenAuth) authenticate(r *http.Request) bool {
+	if len(d.tokens) == 0 {
+		return true
+	}
+
+	if token := r.Header.Get("Logplex-Drain-Token"); token != "" {
+		_, ok := d.tokens[token]
+		return ok
+	}
+
+	return false
+}
+
 func main() {
 	listen := os.Getenv("LISTEN")
 	port := os.Getenv("PORT")
@@ -121,6 +167,7 @@ func main() {
 	if err != nil {
 		keep = DefaultBufferSize
 	}
+
 
 	e := &env{}
 	switch os.Getenv("DATASTORE") {
@@ -145,12 +192,22 @@ func main() {
 		e.db = db
 	}
 
-	mux := goji.NewMux()
-	mux.HandleFunc(pat.Get("/healthcheck"), e.healthHandler)
-	mux.HandleFunc(pat.Post("/logs"), e.logsHandler)
-	mux.HandleFunc(pat.Get("/list/:token"), e.listHandler)
+	var (
+		root = goji.NewMux()
+		logs = goji.SubMux()
+		list = goji.SubMux()
+	)
 
-	if err := http.ListenAndServe(listen+":"+port, mux); err != nil {
+	root.HandleFunc(pat.Get("/healthcheck"), e.healthHandler)
+	root.Handle(pat.New("/logs"), logs)
+	root.Handle(pat.New("/list"), list)
+
+	list.HandleFunc(pat.Get("/:token"), e.listHandler)
+
+	logs.Use(DrainTokenAuth(os.Getenv("DRAIN_TOKENS")))
+	logs.HandleFunc(pat.Post(""), e.logsHandler)
+
+	if err := http.ListenAndServe(listen+":"+port, root); err != nil {
 		log.WithFields(log.Fields{
 			"err": err,
 		}).Fatal("unable to start server")
