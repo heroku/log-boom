@@ -1,6 +1,6 @@
 {
   "name": "Log Boom",
   "description": "A simple ring buffer log collector",
-  "repository": "https://github.com/voidlock/log-boom",
+  "repository": "https://github.com/heroku/log-boom",
   "keywords": ["golang", "logplex", "buffer", "drain"]
 }

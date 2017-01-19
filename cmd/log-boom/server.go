@@ -7,9 +7,9 @@ import (
 	"strconv"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/voidlock/log-boom/auth"
-	ds "github.com/voidlock/log-boom/datastore"
-	"github.com/voidlock/log-boom/syslog"
+	"github.com/heroku/log-boom/auth"
+	ds "github.com/heroku/log-boom/datastore"
+	"github.com/heroku/log-boom/syslog"
 	"goji.io"
 	"goji.io/pat"
 )
