@@ -12,9 +12,9 @@ The list below is merely a brain dump of ideas on where to take this project.
   - [x] Redis
   - [ ] S3 Bucket
 - [x] Multi Drain Capable
-- [ ] Log Drain Endpoint
+- [x] Log Drain Endpoint
   - [x] Basic Endpoint (No Auth)
-  - [ ] Heroku Drain Token Auth
+  - [x] Heroku Drain Token Auth
 - [ ] List Endpoint
   - [x] Basic Endpoint (No Auth)
   - [ ] Authentication
