@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -112,6 +113,22 @@ func (e *env) listHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (e *env) welcomeHandler(w http.ResponseWriter, r *http.Request) {
+	token, err := ioutil.ReadFile("magic_link.key")
+	if err != nil {
+		log.WithFields(log.Fields{
+			"at":  "logs",
+			"err": err,
+		}).Error("could not read magic link token")
+		http.Error(w, http.StatusText(500), 500)
+		return
+	}
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.WriteHeader(200)
+	w.Write([]byte("Got it: "))
+	w.Write(token)
+}
+
 func main() {
 	listen := os.Getenv("LISTEN")
 	port := os.Getenv("PORT")
@@ -155,6 +172,7 @@ func main() {
 	root.HandleFunc(pat.Get("/healthcheck"), e.healthHandler)
 	root.Handle(pat.New("/logs"), logs)
 	root.Handle(pat.New("/list/*"), list)
+	root.HandleFunc(pat.Get("/welcome"), e.welcomeHandler)
 
 	list.HandleFunc(pat.Get("/:token"), e.listHandler)
 

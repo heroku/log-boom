@@ -2,5 +2,8 @@
   "name": "Log Boom",
   "description": "A simple ring buffer log collector",
   "repository": "https://github.com/heroku/log-boom",
-  "keywords": ["golang", "logplex", "buffer", "drain"]
+  "keywords": ["golang", "logplex", "buffer", "drain"],
+  "scripts": {
+    "postdeploy": "openssl rand -hex 20 > magic_link.key"
+  },
 }
