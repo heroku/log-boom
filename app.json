@@ -5,5 +5,5 @@
   "keywords": ["golang", "logplex", "buffer", "drain"],
   "scripts": {
     "postdeploy": "openssl rand -hex 20 > magic_link.key"
-  },
+  }
 }
