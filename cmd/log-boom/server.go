@@ -1,7 +1,6 @@
 package main
 
 import (
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -114,19 +113,26 @@ func (e *env) listHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (e *env) welcomeHandler(w http.ResponseWriter, r *http.Request) {
-	token, err := ioutil.ReadFile("magic_link.key")
-	if err != nil {
+	token := os.Getenv("MAGIC_TOKEN")
+	if token == "" {
 		log.WithFields(log.Fields{
-			"at":  "logs",
-			"err": err,
-		}).Error("could not read magic link token")
+			"at": "welcome",
+		}).Error("welcome accessed with no MAGIC_TOKEN")
 		http.Error(w, http.StatusText(500), 500)
 		return
 	}
+	email := os.Getenv("EMAIL")
+	log.WithFields(log.Fields{
+		"at":    "welcome",
+		"token": token,
+		"email": email,
+		"host":  r.Host,
+	}).Info()
+
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(200)
 	w.Write([]byte("Got it: "))
-	w.Write(token)
+	w.Write([]byte(token))
 }
 
 func main() {
